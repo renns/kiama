@@ -3,6 +3,9 @@
 addSbtPlugin ("com.eed3si9n" % "sbt-unidoc" % "0.4.1")
 addSbtPlugin ("org.scalariform" % "sbt-scalariform" % "1.8.2")
 
+val scalaJSVersionOpt = Option(System.getProperty("scalaJSVersion"))
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJSVersionOpt.getOrElse("1.1.1"))
+
 // Desirable plugins:
 
 addSbtPlugin ("com.jsuereth" % "sbt-pgp" % "1.1.1")

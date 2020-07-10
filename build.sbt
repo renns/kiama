@@ -4,12 +4,12 @@ import scalariform.formatter.preferences._
 
 // Settings for entire build
 
-ThisBuild/version := "2.3.0"
+ThisBuild/version := "2.3.0-a8"
 
 ThisBuild/organization := "org.bitbucket.inkytonik.kiama"
 
-ThisBuild/scalaVersion := "2.13.0"
-ThisBuild/crossScalaVersions := Seq("2.13.0", "2.12.10", "2.11.12", "2.10.7")
+ThisBuild/scalaVersion := "2.12.10"
+ThisBuild/crossScalaVersions := Seq("2.13.0", "2.12.10")
 
 ThisBuild/scalacOptions := {
     // Turn on all lint warnings, except:
@@ -35,9 +35,13 @@ ThisBuild/scalacOptions := {
 
 ThisBuild/resolvers ++=
     Seq(
+        "Accur8 Repo" at "https://locus.accur8.io/repos/all",
         Resolver.sonatypeRepo("releases"),
         Resolver.sonatypeRepo("snapshots")
     )
+
+ThisBuild/credentials += Credentials(Path.userHome / ".sbt" / "credentials")
+ThisBuild/credentials += Credentials(Path.userHome / ".sbt" / "credentials.reader")
 
 ThisBuild/incOptions := (ThisBuild/incOptions).value.withLogRecompileOnMacro(false)
 
@@ -71,7 +75,7 @@ val commonSettings =
             }
         },
 
-        libraryDependencies :=
+        libraryDependencies ++=
             Seq(
                 "org.scalacheck" %% "scalacheck" % "1.14.3" % "test",
                 "org.scalatest" %% "scalatest" % "3.1.0" % "test",
@@ -87,13 +91,14 @@ val commonSettings =
             .setPreference(SpacesAroundMultiImports, false),
 
         // Publishing
-        publishTo := {
-            val nexus = "https://oss.sonatype.org/"
-            if (version.value.trim.endsWith("SNAPSHOT"))
-                Some("snapshots" at nexus + "content/repositories/snapshots")
-            else
-                Some("releases" at nexus + "service/local/staging/deploy/maven2")
-        },
+//        publishTo := {
+//            val nexus = "https://oss.sonatype.org/"
+//            if (version.value.trim.endsWith("SNAPSHOT"))
+//                Some("snapshots" at nexus + "content/repositories/snapshots")
+//            else
+//                Some("releases" at nexus + "service/local/staging/deploy/maven2")
+//        },
+        publishTo := Some("Accur8 Repo Publish" at "https://locus-beta.accur8.io/repos/releases"),
         publishMavenStyle := true,
         Test/publishArtifact := true,
         pomIncludeRepository := { _ => false },
@@ -134,6 +139,8 @@ val versionSettings =
         }
     )
 
+val scalaJSVersionOpt = Option(System.getProperty("scalaJSVersion"))
+
 // Project configuration:
 //   - base project containing macros and code that they need
 //   - core project containing main Kiama functionality, including its tests
@@ -150,35 +157,12 @@ def setupSubProject(project : Project, projectName : String) : Project =
         project,
         projectName
     ).enablePlugins(
-        ScalaUnidocPlugin
+        Seq(ScalaUnidocPlugin) ++ scalaJSVersionOpt.map(_ => ScalaJSPlugin).toSeq: _*
     ).settings(
         commonSettings : _*
     ).settings(
         versionSettings : _*
     )
-
-def baseLibraryDependencies (scalaVersion : String) : Seq[ModuleID] = {
-    val dsinfoVersion =
-        if (scalaVersion.startsWith("2.10"))
-            "0.3.0"
-        else
-            "0.4.0"
-    val dsprofileVersion =
-        if (scalaVersion.startsWith("2.10"))
-            "0.3.0"
-        else
-            "0.4.0"
-    Seq(
-        // Caching:
-        "com.google.guava" % "guava" % "21.0",
-        // DSL support:
-        "org.bitbucket.inkytonik.dsinfo" %% "dsinfo" % dsinfoVersion,
-        // Profiling:
-        "org.bitbucket.inkytonik.dsprofile" %% "dsprofile" % dsprofileVersion,
-        // Reflection
-        "org.scala-lang" % "scala-reflect" % scalaVersion
-    )
-}
 
 val noPublishSettings =
     Seq(
@@ -195,7 +179,17 @@ lazy val base =
     ).settings(
         noPublishSettings : _*
     ).settings(
-        libraryDependencies ++= baseLibraryDependencies(scalaVersion.value),
+        libraryDependencies ++= Seq(
+          // Caching:
+          "com.google.guava" % "guava" % "21.0",
+          // DSL support:
+          "org.bitbucket.inkytonik.dsinfo" %%% "dsinfo" % "0.4.0-a8",
+          // Profiling:
+          "org.bitbucket.inkytonik.dsprofile" %%% "dsprofile" % "0.4.0-a8",
+          // Reflection
+          "org.scala-lang" % "scala-reflect" % scalaVersion.value
+        ),
+        //jsDependencyManifest in Compile := new File("") // uncomment this line for scala.js 0.6
     )
 
 val extrasProject = ProjectRef(file("."), "extras")
@@ -205,7 +199,16 @@ lazy val core =
         project in file("core"),
         "kiama"
     ).settings(
-        libraryDependencies ++= baseLibraryDependencies(scalaVersion.value),
+        libraryDependencies ++= Seq(
+          // Caching:
+          "com.google.guava" % "guava" % "21.0",
+          // DSL support:
+          "org.bitbucket.inkytonik.dsinfo" %%% "dsinfo" % "0.4.0-a8",
+          // Profiling:
+          "org.bitbucket.inkytonik.dsprofile" %%% "dsprofile" % "0.4.0-a8",
+          // Reflection
+          "org.scala-lang" % "scala-reflect" % scalaVersion.value
+        ),
 
         console/initialCommands := """
             import org.bitbucket.inkytonik.kiama._
@@ -243,7 +246,7 @@ lazy val extras =
         libraryDependencies ++=
             Seq(
                 // Command-line handling:
-                "org.rogach" %% "scallop" % "3.3.2",
+                "org.rogach" %%% "scallop" % "3.4.0",
                 // Language server protocol:
                 "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.8.1",
                 "com.google.code.gson" % "gson" % "2.7",
@@ -251,7 +254,7 @@ lazy val extras =
                 "jline" % "jline" % "2.14.6"
             ),
         javaOptions ++= Seq("-Xss8M"),
-        fork := true,
+        fork := false,
         run/connectInput := true,
         run/outputStrategy := Some(StdoutOutput),
         Test/console/initialCommands :=
